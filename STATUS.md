@@ -1,13 +1,5 @@
 # STATUS.md
 
-> **Open blocker (A2, deadline 25 Oct 2026):** the R0 language-model
-> databases are still only Actions artifacts. Checked 13 Oct 2026: both
-> are present, not expired. `all-databases-phase31-n20` (id 8850193603,
-> 6.9 MB) expires 2026-11-01T05:49Z; `all-databases-ablation`
-> (id 8880345921, 2.7 MB) expires 2026-11-02T03:18Z. The archive
-> workflow is drafted but not pushed; it is waiting for the author's
-> go-ahead (see A2 below).
-
 ## A1. Branch, freeze, correct the project memory (13 Oct 2026)
 
 **Commits.** PUB `869b1f7` on `revision/r1` (CLAUDE.md). PRIV `4372f4f`
@@ -50,18 +42,16 @@ The `.bbl` regenerated from `references.bib` is byte-identical to the
 shipped one.
 
 **Not done / deviations (author please look).**
-1. **Tag `tog-r0-submitted` does not exist on the remote yet.** Created
-   locally, but the session's git proxy drops tag pushes ("remote end hung
-   up", 4 tries) and the GitHub API proxy refuses ref creation (403). The
-   fix is to create it from a workflow; I folded that into the A2 archive
-   workflow, which is on hold. Alternatively the author can run
-   `git tag -a tog-r0-submitted 3e87700 -m "R0 as submitted" && git push origin tog-r0-submitted`
-   from their own machine, or create it in the GitHub Releases UI.
-2. **PRIV branch.** H9 says PRIV work goes on `main`. This session is
-   only allowed to push to `claude/optimistic-ritchie-0po68b`, so all PRIV
-   commits are there and `latex.yml` triggers on both branches. The author
-   should merge it into `main` (or allow pushes to `main` for later
-   sessions).
+1. **Tag `tog-r0-submitted`: resolved in A2.** The session's git proxy drops
+   tag pushes and the API proxy refuses ref creation, so the tag was created
+   by the A2 archive workflow (run 38357267471): annotated tag object
+   `04efcb5`, pointing at `3e87700`.
+2. **PRIV branch.** This session can push only to
+   `claude/optimistic-ritchie-0po68b`, so PRIV commits are there and
+   `latex.yml` triggers on both branches. On the author's instruction H9
+   was amended (13 Oct): a session that cannot push to a working branch
+   works on its own branch and opens a pull request for the author to merge
+   before the next step. Pull request opened into `main` at the end of A2.
 3. A0 is still open: the branch the anonymous link tracks is unknown.
    Nothing was pushed to `main` or to `claude/repo-papers-review-chz55c`,
    so H11 holds whatever the answer is.
@@ -70,36 +60,56 @@ shipped one.
 "citation undefined" warnings; the final pass resolves them (the text
 matches exactly).
 
-## A2. Rescue the raw data — ON HOLD (13 Oct 2026)
+## A2. Rescue the raw data (13 Oct 2026)
 
-**State.** Not started on the remote. Blocked on a permission decision,
-not on a technical problem.
+**Commits.** PUB on `revision/r1`: `3680435` (workflow + check tool),
+`e9582ff` and `a8fb324` (bot: source checks, first verification),
+`34a72d7` (MANIFEST.md), `e637b39` (bot: second verification). The same
+history is on `run/archive-data`. PRIV: this entry, the H9 amendment.
 
-**What was verified.**
-* Both artifacts exist and are unexpired (sizes and expiry above).
-* The session container cannot download them: `gh api .../zip` is
-  redirected to Azure blob storage, which the proxy blocks. So the
-  workflow route of section 0.4 is needed.
-* A2.4 done: all three LFS objects in `research_data/`
-  (`runs_phase3_long.sqlite` 12.2 MB, `runs_v3.sqlite.part_00` 1.57 GB,
-  `part_01` 0.92 GB) resolve: the LFS batch API returns a download action
-  for each, checked without downloading.
-* Provenance for the manifest: run 30788234686 = "Paper experiments",
-  workflow_dispatch on `main` at `92e1b64`, 3 Aug 2026; run 30874382486 =
-  "Run ablation", push to `run-ablation` at `28f3fd1`, 4 Aug 2026
-  (concluded `failure` because of the no-notes/no-memory jobs). Model
-  `claude-haiku-4-5-20251001`, temperature 0 on the Anthropic path of
-  `phase3/llm_chat_agent.py`, 150 hands. The no-memory contamination
-  details are in PUB commit `0b43ea5`.
-* A2.6 cannot be tested yet: PUB has no Releases.
+**Produced.**
+* `PUB/.github/workflows/archive-data.yml` (push to `run/archive-data`,
+  `actions: read`, `contents: write`) and
+  `PUB/research_data/tools/check_dbs.py`. Author approved publishing the
+  Release on 13 Oct.
+* Release `data-r0` (public, tag on `3e87700`):
+  `phase31_n20_r0.tar.gz` (6.9 MB), `ablation_r0.tar.gz` (2.7 MB),
+  `phase31_n20_source.json`, `ablation_source.json`, `SHA256SUMS`. Each
+  archive carries a README with protocol and provenance; the ablation
+  README marks the no-memory folders contaminated, "do not analyse".
+  README and release notes are factual and do not mention the review.
+* Tag `tog-r0-submitted` (see A1, deviation 1).
+* `PUB/research_data/MANIFEST.md`: LFS datasets, Release datasets, and
+  datasets named in the docs but held nowhere, each with protocol and
+  checksum.
+* `PUB/research_data/checks/`: source checks, `data-r0.SHA256SUMS`, and
+  one verification record per run.
 
-**Drafted, not committed.** `research_data/tools/check_dbs.py` (read-only
-integrity + shape check, tested on a 20-hand local database) is in the
-PUB working tree. The archive workflow (`.github/workflows/archive-data.yml`
-on `run/archive-data`: download both artifacts, integrity-check, require
-20 x 150 hands, tar each experiment with a README marking the
-no-memory seeds as contaminated, `SHA256SUMS`, create Release `data-r0`
-targeting `3e87700`, plus a separate verify job that downloads from the
-Release and re-opens every database; also creates the missing tag) was
-refused by the session's permission classifier because it publishes a
-public Release. Waiting for the author to confirm.
+**Checks (Done when).**
+
+| Check | Result |
+|---|---|
+| Phase 3.1 n=20: 20 databases, 150 hands each, integrity ok | yes; seeds match the 20-seed list; `runs.git_sha` = `92e1b64` in all 20 |
+| Ablation: integrity ok | yes, 8 databases: no-cot 42/137/256/512/1024, no-memory 256/512/1024; 150 hands each; `runs.git_sha` = `28f3fd1` |
+| Release lists the archives | yes, 5 assets |
+| Verification in the first run (separate job, fresh runner) | run 38357267471: SHA256SUMS ok, every file re-opened, per-file SHA-256 identical to source |
+| **Second workflow run** downloads and opens them | run 38357503497 (push of `34a72d7`): archive steps skipped because the Release was complete, verify job success |
+| A2.4 LFS objects resolve | yes (batch API, no download); 2.5 GB file not copied |
+| A2.6 download from the session container | **works with `curl -sSfL` on the `releases/download/...` URL** (redirect to release-assets.githubusercontent.com is allowed). Downloaded both archives, `sha256sum -c` ok, all 28 databases opened with `check_dbs.py`, all_ok. `gh release download` does **not** work (it uses GraphQL, which the proxy blocks); `gh api .../releases/assets/<id>` with `Accept: application/octet-stream` also works. **So A3 may run small analyses in the session.** |
+
+**Surprises.**
+* Both artifacts were still present (expiry 1 and 2 Nov), so nothing
+  was lost.
+* The ablation run (30874382486) concluded `failure` overall because of
+  the no-notes / no-memory jobs; its aggregate artifact was still
+  uploaded and is complete for what it contains.
+* `reports/phase31_long_scorecard.txt` (UTF-16) still describes the
+  five-seed temperature-1.0 Phase 3.1 run; `r_by_phase.json` cites it only
+  for Phases 1-3 and takes Phase 3.1 from the n=20 run. Worth a line in B3.
+
+**Author, please look at.**
+1. Merge the PRIV pull request into `main` before the next step (H9).
+2. The A0 items in `DECISIONS.md` are still open, in particular which
+   branch the anonymous link tracks (H11) and whether the four missing
+   databases exist on your machines. Release `data-r0` is the place to
+   attach them.

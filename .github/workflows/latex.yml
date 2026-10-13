@@ -1,0 +1,88 @@
+# LaTeX build for the private revision repo.
+#
+# Builds the frozen R0 sources in paper_r0/ and checks them against the
+# PDFs that were actually submitted (fetched from the public repo at tag
+# commit 3e87700). Results are committed back to builds/ on the same
+# branch, because the session container cannot download Actions
+# artifacts. Pushes made with GITHUB_TOKEN do not re-trigger workflows.
+name: LaTeX build
+
+on:
+  push:
+    branches: [main, claude/optimistic-ritchie-0po68b]
+    paths:
+      - "paper_r0/**"
+      - "paper/**"
+      - "scripts/compare_pdf_text.py"
+      - ".github/workflows/latex.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: latex-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      R0_COMMIT: 3e87700d440f0e9b59b298c30e158da6788a2437
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install TeX Live (publishers collection), latexdiff, poppler
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends \
+            texlive-latex-base texlive-latex-recommended texlive-latex-extra \
+            texlive-publishers texlive-fonts-recommended texlive-science \
+            latexmk latexdiff poppler-utils > /dev/null
+          pdflatex --version | head -1
+          latexdiff --version | head -1
+
+      - name: Build R0 (main + supplementary)
+        working-directory: paper_r0
+        run: |
+          mkdir -p ../builds
+          # Keep the shipped main.bbl aside; latexmk regenerates it from
+          # references.bib so the reference count is checked from source.
+          cp main.bbl ../builds/r0_main_shipped.bbl
+          latexmk -pdf -interaction=nonstopmode -halt-on-error main.tex > ../builds/r0_main.log 2>&1 \
+            || { tail -60 ../builds/r0_main.log; exit 1; }
+          latexmk -pdf -interaction=nonstopmode -halt-on-error supplementary.tex > ../builds/r0_supp.log 2>&1 \
+            || { tail -60 ../builds/r0_supp.log; exit 1; }
+          cp main.pdf ../builds/r0_main.pdf
+          cp supplementary.pdf ../builds/r0_supplementary.pdf
+          cp main.bbl ../builds/r0_main_rebuilt.bbl
+          git checkout -- main.bbl 2>/dev/null || true
+
+      - name: Fetch the submitted PDFs from the public repo
+        run: |
+          base=https://raw.githubusercontent.com/RachitAgrawal146/Poker_trust/$R0_COMMIT/tog_build
+          curl -fsSL "$base/tog_anonymous_FINAL.pdf" -o /tmp/submitted_main.pdf
+          curl -fsSL "$base/supplementary_FINAL.pdf" -o /tmp/submitted_supp.pdf
+
+      - name: Compare built text with the submitted text
+        run: |
+          python3 scripts/compare_pdf_text.py \
+            --built builds/r0_main.pdf --submitted /tmp/submitted_main.pdf \
+            --bbl builds/r0_main_rebuilt.bbl --label "R0 main" \
+            --out builds/r0_main_check.md
+          python3 scripts/compare_pdf_text.py \
+            --built builds/r0_supplementary.pdf --submitted /tmp/submitted_supp.pdf \
+            --label "R0 supplementary" \
+            --out builds/r0_supp_check.md
+          cat builds/r0_main_check.md builds/r0_supp_check.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Commit build outputs back to this branch
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f builds/
+          git commit -q -m "build: LaTeX outputs for ${GITHUB_SHA::7}" || exit 0
+          for i in 1 2 3 4; do
+            git pull -q --rebase origin "${GITHUB_REF_NAME}" && \
+            git push -q origin "HEAD:${GITHUB_REF_NAME}" && break || sleep $((2**i))
+          done

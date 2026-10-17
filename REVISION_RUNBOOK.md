@@ -54,7 +54,7 @@ both repos attached.
 | H6 | **Report what the data says.** Do not tune a design, a seed list, a threshold or a metric to rescue a claim. The analysis plan (C0) is committed before the full runs. Negative results are results. | The paper's central claim may not survive. That is acceptable; hiding it is not. |
 | H7 | **Verify every citation** against the publisher page or DOI before it enters the `.bib`. Never cite from memory. Log the URL checked. | |
 | H8 | **Never commit the decision letter or reviewer text anywhere**, and keep anything that paraphrases reviews, lists the paper's weaknesses, or interprets unpublished results in `PRIV`. Refer to comments by the IDs in section 3. | Reviews are confidential. |
-| H9 | Git: in `PUB` work on branch `revision/r1`; in `PRIV` on `main`. Follow the commit style in `PUB/CLAUDE.md`. Never force-push, never amend. | |
+| H9 | Git: in `PUB` work on branch `revision/r1`; in `PRIV` on `main`. If a session cannot push to the working branch of either repo, it works on its own branch in that repo and opens a pull request into the working branch for the author to merge before the next step starts. Follow the commit style in `PUB/CLAUDE.md`. Never force-push, never amend. | Amended 13 Oct 2026 after A1, when the session could push only to its own branch. |
 | H10 | Code that produced published data is never changed retroactively. If the paper and the code disagree, the paper changes, or a new flagged variant is added and run. | |
 | H11 | Do not merge or push anything to the branch the anonymous review link tracks until step F3. Step A0 records which branch that is. | Reviewers may open the link at any time. |
 
